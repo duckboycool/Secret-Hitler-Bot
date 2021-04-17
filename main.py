@@ -1,0 +1,38 @@
+"""
+Main bot file for Secret Hitler discord bot.
+Runs bot and loads in commands.
+"""
+
+import discord
+from discord.ext import commands
+
+intents = discord.Intents.default()
+intents.members = True
+
+bot = commands.Bot(command_prefix='', #Prefixless
+                   intents=intents,
+                   owner_id=251092222831755264,
+                   case_insensitive=True,
+                   help_command=None
+)
+
+bot.load_extension('commands') #Command extension that handles cogs
+
+games = bot.get_cog('GameCommands') #For seeing who can use commands
+
+@bot.event
+async def on_message(message):
+    if not(isinstance(message.channel, discord.DMChannel)) or message.author.bot:
+        return
+
+    await bot.process_commands(message) #Process commands normally through bot class
+
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.CommandNotFound):
+        await ctx.send(error.args[0] + '.') #Error message passed (Command "command" is not found)
+        return
+    
+    raise error
+
+bot.run(open('token.txt').read())
