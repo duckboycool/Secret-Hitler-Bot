@@ -1,1 +1,1 @@
-"# Secret-Hitler-Bot" 
+# Secret-Hitler-Bot
