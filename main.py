@@ -32,6 +32,10 @@ async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         await ctx.send(error.args[0] + '.') #Error message passed (Command "command" is not found)
         return
+
+    if isinstance(error, commands.NotOwner):
+        await ctx.send('You cannot use this command.')
+        return
     
     raise error
 

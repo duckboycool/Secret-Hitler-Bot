@@ -8,14 +8,14 @@ import os
 import discord
 from discord.ext import commands
 
-def update_status(bot):
-#    if len(games) == 0:
+def update_status(bot, games={}):
+    if len(games) == 0:
         return bot.change_presence(activity=discord.Game(f'No active games. In {len(bot.guilds)} servers, and influencing governments of {len(bot.users)} people.'), status=discord.Status.idle)
-#
-#    if len(games) == 1:
-#        return client.change_presence(activity=discord.Game('1 active game. In ' + str(len(client.guilds)) + ' servers, and influencing governments of ' + str(len(client.users)) + ' people.'), status=discord.Status.online)
-#
-#    return client.change_presence(activity=discord.Game(str(len(games)) + ' active games. In ' + str(len(client.guilds)) + ' servers, and influencing governments of ' + str(len(client.users)) + ' people.'), status=discord.Status.online)
+
+    if len(games) == 1:
+        return bot.change_presence(activity=discord.Game(f'1 active game. In {len(bot.guilds)} servers, and influencing governments of {len(bot.users)} people.'), status=discord.Status.online)
+
+    return bot.change_presence(activity=discord.Game(f'{len(games)} active games. In {len(bot.guilds)} servers, and influencing governments of {len(bot.users)} people.'), status=discord.Status.online)
 
 class SecHitComms(commands.Cog):
     def __init__(self, bot):
@@ -32,9 +32,9 @@ class SecHitComms(commands.Cog):
     async def reload(self, ctx):
         print("Reloading Cogs")
 
-        #game = self.bot.get_cog('GameCommands')
+        game = self.bot.get_cog('GameCommands')
 
-        #joinlist = game.joinlist
+        games = game.games
 
         for cog in os.listdir('./cogs'):
             if cog.startswith('cog_'):
@@ -42,9 +42,9 @@ class SecHitComms(commands.Cog):
 
                 self.bot.reload_extension(f'cogs.{os.path.splitext(cog)[0]}')
         
-        #game = self.bot.get_cog('GameCommands')
+        game = self.bot.get_cog('GameCommands')
 
-        #game._load(joinlist)
+        game._load(games)
 
         await ctx.send("Reloaded sucessfully.")
 
