@@ -20,9 +20,20 @@ bot.load_extension('commands') #Command extension that handles cogs
 
 games = bot.get_cog('GameCommands') #For seeing who can use commands
 
+def useropen(user): #Seeing if someone can use commands
+    game = games._get_game(user)
+
+    if not(game):
+        return True
+    
+    return game._get_player(user).open
+
 @bot.event
 async def on_message(message):
-    if not(isinstance(message.channel, discord.DMChannel)) or message.author.bot:
+    if not(isinstance(message.channel, discord.DMChannel)) or message.author.bot: #Only users in DMs
+        return
+
+    if not(useropen(message.author)): #Currently replying to bot in game
         return
 
     await bot.process_commands(message) #Process commands normally through bot class
