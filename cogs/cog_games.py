@@ -8,6 +8,9 @@ import random, asyncio
 import discord
 from discord.ext import commands
 
+#Ignore pylint import-error (extension loaded from path of main.py)
+from cogs.GameClasses import Player, Game # pylint: disable=import-error
+
 chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890'
 
 roles = ['Liberal', 'Fascist', 'Hitler']
@@ -24,87 +27,6 @@ def update_status(bot, games={}):
 
     return bot.change_presence(activity=discord.Game(f'{len(games)} games. In {len(bot.guilds)} servers, and influencing governments of {len(bot.users)} people.'), status=discord.Status.online)
 
-class Player:
-    def __init__(self, game, user):
-        self.game = game
-
-        self.user = user
-        self.name = user.name
-
-        self.open = True #Can use commands (is not replying to game message)
-    
-    def send(self, *args, **kwargs):
-        return self.user.send(*args, **kwargs)
-    
-    def teammates(self):
-        return [player for player in self.game.players if player != self and player.liberal == self.liberal]
-
-    def start(self, role):
-        self.alive = True
-        self.role = role
-
-        self.hitler = False
-        if role == Hitler:
-            self.hitler = True
-        
-        if role == Liberal:
-            self.liberal = True
-        
-        else:
-            self.liberal = False
-
-    
-
-class Game:
-    def __init__(self, code, owner):
-        self.code = code
-        self.owner = owner
-
-        self.players = [Player(self, owner)]
-
-        self.started = False
-    
-    def _get_player(self, user):
-        usermatch = [player for player in self.players if player.user == user]
-
-        if usermatch: #User in game
-            return usermatch[0]
-
-    def playlist(self):
-        mess = '\n>>> '
-
-        for i, player in enumerate(self.players):
-            mess += f'**{i + 1}.** {player.name}\n'
-
-        return mess
-        
-    def join(self, user):
-        self.players.append(Player(self, user))
-
-    def leave(self, player):
-        self.players.remove(player)
-
-    def start(self):
-        fas = random.choices(self.players, k=(len(self.players) - 1) // 2)
-        
-        self.hit = fas[0]
-        fas[0].start(Hitler)
-
-        self.fas = fas
-        for fasplayer in fas[1:]:
-            fasplayer.start(Fascist)
-
-        self.lib = {player for player in self.players if player not in self.fas} #Set, might want to change to list depending on use
-        for libplayer in self.lib:
-            libplayer.start(Liberal)
-
-        self.deck = [Liberal] * 6 + [Fascist] * 11 #6 liberal policies and 11 fascist
-        random.shuffle(self.deck)
-
-        self.started = True
-
-        self.first = True #First turn
-
 
 class GameCommands(commands.Cog):
     def __init__(self, bot):
@@ -114,6 +36,10 @@ class GameCommands(commands.Cog):
 
     def _load(self, data):
         self.games = data
+
+        for game in data.values():
+            for player in game.players:
+                player.open = True
 
     def _get_game(self, user):
         gamematch = [game for game in self.games.values() if user in {player.user for player in game.players}]
@@ -209,9 +135,9 @@ class GameCommands(commands.Cog):
             await ctx.send('You are not the host of this game.')
             return
 
-        #if game.started:
-        #    await ctx.send('The game has already started.')
-        #    return
+        if game.started:
+            await ctx.send('The game has already started.')
+            return
         
         if len(game.players) < 5:
             await ctx.send('There are not enough players in the lobby to start a game.')
@@ -264,8 +190,44 @@ class GameCommands(commands.Cog):
                 
                 await asyncio.sleep(2 - 0.1 * len(game.players))
 
-            game.first = False #Turning off fuirst turn
-            input()
+            #President picking Chancellor
+            if game.first:
+                for player in game.players:
+                    if player != game.president:
+                        await player.send(f'The first president is **{game.president.name}**. Wait for their pick for Chancellor.')
+                
+                await game.president.send(f'You are the first President. Choose who you want to nominate for Chancellor with these numbers.{game.playlist()}', file=discord.File('cogs/GameAssets/President.png'))
+            #TODO: Send messages for later rounds
+                
+            game.president.open = False #Disable commands during reply
+
+            while True:
+                pick = int((await game.president.wait(self.bot, lambda message: message.content.isdigit() and len(game.alive) >= int(message.content) > 0, 'Did not find player `{message.content}`. Make sure to pick using the above numbers.')).content) - 1
+
+                if game.players[pick] == game.president:
+                    await game.president.send('You cannot nominate yourself for Chancellor.')
+                
+                else: #Valid Chancellor chosen
+                    break
+
+            game.chancellor = game.players[pick]
+
+            for player in game.alive:
+                player.open = False
+
+            #Notifying Chancellor choice
+            await game.president.send(f'You chose *{game.chancellor.name}* as your Chancellor nominee. Everybody, including you, will now vote with `ja` or `nein` on if they want your government.', file=discord.File('cogs/GameAssets/Votes.png'))
+
+            await game.chancellor.send('The President chose you as their Chancellor nominee. Everybody, including you, will now vote with `ja` or `nein` on if they want your government.', file=discord.File('cogs/GameAssets/Chancellor.png'))
+
+            for player in game.players:
+                if player not in {game.president, game.chancellor}:
+                    await player.send(f'The President chose *{game.chancellor.name}* as their Chancellor nominee. Vote with `ja` or `nein` on if you want this government.', file=discord.File('cogs/GameAssets/Votes.png'))
+            
+
+
+            game.first = False #Turning off first turn
+            break #Stop at one turn for now
 
 
 def setup(bot):
