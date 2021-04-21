@@ -13,10 +13,19 @@ from cogs.GameClasses import Player, Game # pylint: disable=import-error
 
 chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890'
 
+#Role values
 roles = ['Liberal', 'Fascist', 'Hitler']
 Liberal = 0
 Fascist = 1
 Hitler = 2
+
+#Powers
+search = 1
+choose = 2
+examine = 3
+shoot = 4
+
+ords = [None, 'first', 'second', 'third', 'fourth', 'fifth']
 
 def update_status(bot, games={}):
     if len(games) == 0:
@@ -70,7 +79,7 @@ class GameCommands(commands.Cog):
         game = self._get_game(ctx.author)
 
         if game:
-            await ctx.send(f'These are the players currently in your lobby.{game.playlist()}')
+            await ctx.send(f"These are the players currently {'alive' if game.started else 'in your lobby'}.{game.playlist()}")
         
         else:
             await ctx.send('You are not currently in a lobby.')
@@ -113,7 +122,7 @@ class GameCommands(commands.Cog):
 
         player = game._get_player(ctx.author)
         
-        #TODO: Handle different cases for leaving while in a game
+        #TODO: Handle different cases for leaving while in a game, and transfer ownership when owner leaves
         game.leave(player)
         await ctx.send(f'Successfully left room `{game.code}`.')
 
@@ -173,7 +182,7 @@ class GameCommands(commands.Cog):
                         await fascist.send(f'The Hitler player is *{game.hit.name}*. The Hitler player will also know who you are. Work together to enact 6 fascist policies or elect Hitler as Chancellor after enacting 3.', file=discord.File('cogs/GameAssets/Fascist Membership.png'))
                     
                     elif len(fascist.teammates()) == 2:
-                        await fascist.send(f'The Hitler player is *{game.hit.name}*, and your fellow fascist is *{[fas for fas in fascist.teammates() if fas.role == Fascist]}*. The Hitler player will not know who you two are, so you both will need to work together to enact 6 fascist policies or enact 3 fascist policies then elect Hitler Chancellor. You also possibly should try to alert Hitler to who you are without drawing attention.', file=discord.File('cogs/GameAssets/Fascist Membership.png'))
+                        await fascist.send(f'The Hitler player is *{game.hit.name}*, and your fellow fascist is *{[fas.name for fas in fascist.teammates() if fas.role == Fascist][0]}*. The Hitler player will not know who you two are, so you both will need to work together to enact 6 fascist policies or enact 3 fascist policies then elect Hitler Chancellor. You also possibly should try to alert Hitler to who you are without drawing attention.', file=discord.File('cogs/GameAssets/Fascist Membership.png'))
                     
                     else:
                         await fascist.send(f'The Hitler player is *{game.hit.name}*, and your fellow fascists are *{"* and *".join(fas.name for fas in fascist.teammates() if fas != game.hit)}*. The Hitler player will not know who any of you are, so you will all need to work together to enact 6 fascist policies or enact 3 fascist policies then elect Hitler Chancellor. You also possibly should try to alert Hitler to who you are without drawing attention.', file=discord.File('cogs/GameAssets/Fascist Membership.png'))
@@ -191,43 +200,308 @@ class GameCommands(commands.Cog):
                 await asyncio.sleep(2 - 0.1 * len(game.players))
 
             #President picking Chancellor
-            if game.first:
-                for player in game.players:
-                    if player != game.president:
-                        await player.send(f'The first president is **{game.president.name}**. Wait for their pick for Chancellor.')
-                
-                await game.president.send(f'You are the first President. Choose who you want to nominate for Chancellor with these numbers.{game.playlist()}', file=discord.File('cogs/GameAssets/President.png'))
-            #TODO: Send messages for later rounds
-                
+            for player in game.players:
+                if player != game.president:
+                    await player.send(f"The {'first' if game.first else 'next'} president is **{game.president.name}**. Wait for their pick for Chancellor.")
+            
+            await game.president.send(f"You are the {'first' if game.first else 'next'} President. Choose who you want to nominate for Chancellor with these numbers.{game.playlist()}", file=discord.File('cogs/GameAssets/President.png'))
+                            
             game.president.open = False #Disable commands during reply
 
             while True:
-                pick = int((await game.president.wait(self.bot, lambda message: message.content.isdigit() and len(game.alive) >= int(message.content) > 0, 'Did not find player `{message.content}`. Make sure to pick using the above numbers.')).content) - 1
+                pick = game.alive[int((await game.president.wait(self.bot, lambda message: message.content.isdigit() and int(message.content) in range(1, len(game.alive) + 1), 'Did not find player `{message.content}`. Make sure to pick using the above numbers.')).content) - 1]
 
-                if game.players[pick] == game.president:
+                if pick == game.president:
                     await game.president.send('You cannot nominate yourself for Chancellor.')
+
+                elif pick in game.lastgov:
+                    if pick == game.lastgov[1]:
+                        await game.president.send('You cannot nominate the last elected Chancellor.')
+
+                    elif pick == game.lastgov[0] and len(game.alive) > 5:
+                        await game.president.send('You cannot nominate the last elected President while there are more than 5 people alive.')
+                    
+                    else: #Special rule to allow last President to be elected Chancellor when there are 5 or less people alive
+                        break
                 
                 else: #Valid Chancellor chosen
                     break
 
-            game.chancellor = game.players[pick]
+            game.chancellor = pick
 
             for player in game.alive:
                 player.open = False
 
             #Notifying Chancellor choice
-            await game.president.send(f'You chose *{game.chancellor.name}* as your Chancellor nominee. Everybody, including you, will now vote with `ja` or `nein` on if they want your government.', file=discord.File('cogs/GameAssets/Votes.png'))
-
             await game.chancellor.send('The President chose you as their Chancellor nominee. Everybody, including you, will now vote with `ja` or `nein` on if they want your government.', file=discord.File('cogs/GameAssets/Chancellor.png'))
+            await game.chancellor.send(file=discord.File('cogs/GameAssets/Votes.png'))
 
             for player in game.players:
                 if player not in {game.president, game.chancellor}:
                     await player.send(f'The President chose *{game.chancellor.name}* as their Chancellor nominee. Vote with `ja` or `nein` on if you want this government.', file=discord.File('cogs/GameAssets/Votes.png'))
             
+            await game.president.send(f'You chose *{game.chancellor.name}* as your Chancellor nominee. Everybody, including you, will now vote with `ja` or `nein` on if they want your government.', file=discord.File('cogs/GameAssets/Votes.png'))
 
+            #Vote on government            
+            result, votemessage = await game.votes(self.bot) #Result is net votes
+
+            for player in game.players:
+                player.open = True #Restoring commands
+
+                await player.send(votemessage)
+            
+            if result > 0:
+                if game.passed[1] >= 3 and game.chancellor == game.hit: #At least 3 Fascist policies and Hitler elected Chancellor
+                    for player in game.players:
+                        await player.send('Hitler has been elected Chancellor after 3 Fascist polices were enacted, meaning that Fascits have won.', file=discord.File(f'cogs/GameAssets/Fascist Win.png'))
+                    
+                    rolelist = game.rolelist(Fascist)
+                        
+                    for player in game.players:
+                        await player.send(rolelist)
+
+                    break #Game end
+                
+                for player in game.players:
+                    await player.send('The government has won the election and will now take office.')
+
+            else: #Government lost
+                for player in game.players:
+                    await player.send(f"{'The government has' if result < 0 else 'The vote has tied, so the government'} lost the election. The Presidency will now go to the next person, and the government will become less stable.")
+                
+                game.nextpres(False) #Don't update last government
+
+                game.instability += 1
+
+                if game.instability == 3:
+                    for player in game.players:
+                        await player.send("But first, becuase the government hasn't been able to be sucessfully elected in the past 3 elections, the country has plunged into chaos and a the top policy from the deck will be passed.")
+                    
+                    passed = game.chaos()
+
+                    for player in game.players:
+                        await player.send(f'The populace passed a **{roles[passed]}** policy into law.', file=discord.File(f'cogs/GameAssets/{roles[passed]} Article.png'))
+
+                game.first = False
+
+                for player in game.players:
+                    await player.send(file=discord.File(f'cogs/GameAssets/Fascist Tracker {game.passed[1]}.png'))
+                    await player.send(file=discord.File(f'cogs/GameAssets/Liberal Tracker {game.instability}-{game.passed[0]}.png'))
+
+                continue #Restart game loop
+                
+            await asyncio.sleep(1 - 0.05 * len(game.players))
+
+            #Post trackers
+            for player in game.players:
+                await player.send(file=discord.File(f'cogs/GameAssets/Fascist Tracker {game.passed[1]}.png'))
+                await player.send(file=discord.File(f'cogs/GameAssets/Liberal Tracker {game.instability}-{game.passed[0]}.png'))
+            
+            await game.chancellor.send('Wait for the President to pick the policy they want to remove before sending the other two over to you.')
+
+            for player in game.players:
+                if player not in {game.president, game.chancellor}:
+                    await player.send('The government will now decide on which policy to enact. Wait for the President to pick a policy to remove.')
+            
+            game.president.open = False
+            
+            await game.president.send('Since you are President, you will chose which policy from the top 3 policies you want to remove before sending the remaining ones to your Chancellor. Type the number of the policy you want to *remove* from the ones below.')
+
+            #Pick policy to pass
+            hand = [game.deck.pop(0) for i in range(3)]
+
+            #TODO: Veto power
+            for i, article in enumerate(hand):
+                await game.president.send(f'**{i + 1}.**', file=discord.File(f'cogs/GameAssets/{roles[article]} Article.png'))
+            
+            removed = int((await game.president.wait(self.bot, lambda message: message.content.isdigit() and int(message.content) in range(1, 4), 'Did not find policy `{message.content}`. Make sure to pick using the above numbers.')).content) - 1
+
+            popped = hand.pop(removed)
+
+            game.discard.append(popped)
+
+            await game.president.send(f'Successfully removed a *{roles[popped]}* policy. The remaining articles will now be sent to your Chancellor.')
+
+            game.president.open = True
+
+            for player in game.players:
+                if player not in {game.president, game.chancellor}:
+                    await player.send('The President chose which policy to remove. Now wait for the Chancellor to pick which of the remaining policies to pass.')
+
+            game.chancellor.open = False
+            
+            await game.chancellor.send('The President chose which policy to remove. Now you have to choose which of the two following policies to enact into law. Type the number of the policy you want to *enact*.')
+
+            for i, article in enumerate(hand):
+                await game.chancellor.send(f'**{i + 1}.**', file=discord.File(f'cogs/GameAssets/{roles[article]} Article.png'))
+
+            passed = int((await game.chancellor.wait(self.bot, lambda message: message.content.isdigit() and int(message.content) in range(1, 3), 'Did not find policy `{message.content}`. Make sure to pick using the above numbers.')).content) - 1
+
+            game.discard.append(hand.pop(not(passed))) #Since articles are 0 and 1, not will give the one not chosen
+
+            game.passed[hand[0]] += 1
+
+            await game.chancellor.send(f'Successfully passed a *{roles[hand[0]]}* policy into law.')
+
+            game.chancellor.open = True
+
+            #Announce results
+            for player in game.players:
+                if player != game.chancellor:
+                    await player.send(f'The government passed a **{roles[hand[0]]}** policy into law.', file=discord.File(f'cogs/GameAssets/{roles[hand[0]]} Article.png'))
+
+            result, vicmessage = game.victorycheck()
+
+            if result is not None:
+                for player in game.players:
+                    await player.send(vicmessage, file=discord.File(f'cogs/GameAssets/{roles[result]} Win.png'))
+                
+                rolelist = game.rolelist(Liberal)
+                    
+                for player in game.players:
+                    await player.send(rolelist)
+
+                break
+
+            if len(game.deck) < 3: #Shuffle discard back if deck is too small
+                game.deck += game.discard
+                random.shuffle(game.deck)
+
+                game.discard = []
+            
+            for player in game.players:
+                await player.send('Here is the current state of the article trackers.', file=discord.File(f'cogs/GameAssets/Fascist Tracker {game.passed[1]}.png'))
+                await player.send(file=discord.File(f'cogs/GameAssets/Liberal Tracker {game.instability}-{game.passed[0]}.png'))
+
+            if hand[0] == Fascist:
+                power = game.executive()
+
+                if power == search:
+                    await game.president.send(f'Because your government passed the {ords[game.passed[1]]} Fascist policy, you now get to choose someone to search and find out their membership (Liberal or Fascist) with the numbers below.{game.playlist()}')
+
+                    for player in game.players:
+                        if player != game.president:
+                            await player.send(f'Because the {ords[game.passed[1]]} Fascist policy was passed, the President now gets to choose a player and find out their membership (Liberal or Facist).')
+                    
+                    game.president.open = False
+
+                    while True:
+                        pick = game.alive[int((await game.president.wait(self.bot, lambda message: message.content.isdigit() and int(message.content) in range(1, len(game.alive) + 1), 'Did not find player `{message.content}`. Make sure to pick using the above numbers.')).content) - 1]
+
+                        if pick == game.president:
+                            await game.president.send('You cannot search yourself.')
+                        
+                        else:
+                            break
+                    
+                    await game.president.send(f"*{pick.name}*'s membership is *{roles[pick.team]}*.", file=discord.File(f'cogs/GameAssets/{roles[pick.team]} Membership.png'))
+
+                    game.president.open = True
+
+                    for player in game.players:
+                        if player != game.president:
+                            if player == pick:
+                                await player.send('The President chose to search **you**. Be careful, as the President may lie about what they saw.')
+                            
+                            else:
+                                await player.send(f'The President chose to search *{pick.name}*. Wait to see what party the President claims they were.')
+                
+                elif power == choose:
+                    await game.president.send(f'Because your government passed the {ords[game.passed[1]]} Fascist policy, you now get to choose the next President with the numbers below.{game.playlist()}')
+
+                    for player in game.players:
+                        if player != game.president:
+                            await player.send(f'Because the {ords[game.passed[1]]} Fascist policy was passed, the President now gets to choose any other player to be the next President.')
+                    
+                    game.president.open = False
+
+                    while True:
+                        pick = game.alive[int((await game.president.wait(self.bot, lambda message: message.content.isdigit() and int(message.content) in range(1, len(game.alive) + 1), 'Did not find player `{message.content}`. Make sure to pick using the above numbers.')).content) - 1]
+
+                        if pick == game.president:
+                            await game.president.send('You cannot elect yourself.')
+                        
+                        else:
+                            break
+
+                    await game.president.send(f'*{pick.name}* is now the next President.')
+
+                    game.president.open = True
+
+                    for player in game.players:
+                        if player != game.president:
+                            if player == pick:
+                                await player.send('The President chose to make **you** the next President', file=discord.File('cogs/GameAssets/President.png'))
+                            
+                            else:
+                                await player.send(f'The President chose to make *{pick.name}* the next President.')
+                    
+                    #Set President
+                    game.lastgov = [game.president, game.chancellor]
+                    game.president = pick
+
+                    #Next round without iterating president
+                    game.first = False
+                    continue
+
+                elif power == examine:
+                    await game.president.send(f'Because your government passed the {ords[game.passed[1]]} Fascist policy, you now get to look at the next 3 policies.')
+
+                    for player in game.players:
+                        if player != game.president:
+                            await player.send(f'Because the {ords[game.passed[1]]} Fascist policy was passed, the President now gets to look at the next 3 policies.')
+                    
+                    for i, article in enumerate(game.deck[:3]):
+                        await game.president.send(f'**{i + 1}.**', file=discord.File(f'cogs/GameAssets/{roles[article]} Article.png'))
+
+                elif power == shoot:
+                    await game.president.send(f'Because your government passed the {ords[game.passed[1]]} Fascist policy, you must choose a different player to kill.{game.playlist()}')
+
+                    for player in game.players:
+                        if player != game.president:
+                            await player.send(f'Because the {ords[game.passed[1]]} Fascist policy was passed, the President must choose a different player to kill.')
+                    
+                    game.president.open = False
+                    
+                    while True:
+                        pick = game.alive[int((await game.president.wait(self.bot, lambda message: message.content.isdigit() and int(message.content) in range(1, len(game.alive) + 1), 'Did not find player `{message.content}`. Make sure to pick using the above numbers.')).content) - 1]
+
+                        if pick == game.president:
+                            await game.president.send('Unfortunately, you cannot shoot yourself.')
+                        
+                        else:
+                            break
+
+                    game.alive.remove(pick) #Kill player
+
+                    await game.president.send(f'You sucessfully executed *{pick.name}*.')
+
+                    game.president.open = True
+
+                    for player in game.players:
+                        if player != game.president:
+                            if player == pick:
+                                await player.send("The President chose to execute **you**. Hopefully you aren't as much of a target next time. *You should stop talking.*")
+                            
+                            else:
+                                await player.send(f'The President chose to execute *{pick.name}*.')
+
+                    if game.hit == pick: #Killed Hitler
+                        for player in game.players:
+                            await player.send('Hitler has been executed by the President, and therefore, the Liberals win.', file=discord.File(f'cogs/GameAssets/Liberal Win.png'))
+
+                        rolelist = game.rolelist(Liberal)
+                            
+                        for player in game.players:
+                            await player.send(rolelist)
+                        
+                        break
+            
+            game.nextpres()
 
             game.first = False #Turning off first turn
-            break #Stop at one turn for now
+    
+        game.reset() #Reset game to lobby
 
 
 def setup(bot):
