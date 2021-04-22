@@ -16,6 +16,7 @@ search = 1
 choose = 2
 examine = 3
 shoot = 4
+shootv = 5
 
 class Player:
     def __init__(self, game, user):
@@ -87,6 +88,8 @@ class Game:
         if elected: #Don't update last government if not elected
             self.lastgov = [self.president, self.chancellor]
 
+        self.chancellor = None #Clear chancellor until next one is chosen
+
         self.president = self.alive[index % len(self.alive)]
 
     def chaos(self): #Government thrown into chaos after 3 unsucessful
@@ -107,10 +110,10 @@ class Game:
         return passed
 
     def victorycheck(self): #Returns result, message or None for result
-        if self.passed[1] == 6: #Fascist win
+        if self.passed[Fascist] == 6: #Fascist win
             return (Fascist, 'There have been 6 Fascist policies passed, meaning that Fascists have won.')
         
-        if self.passed[0] == 5: #Liberal win
+        if self.passed[Liberal] == 5: #Liberal win
             return (Liberal, 'There have been 5 Liberal policies passed, meaning that Liberals have won.')
         
         return (None, None) #No victory
@@ -152,6 +155,8 @@ class Game:
                 unvoted.remove(player)
 
                 await player.send(f'Counted vote as *{vote.content.casefold()}*.')
+
+                player.open = True
             
             else:
                 await player.send('Vote not recognized. Make sure to vote with `ja` or `nein`.')
@@ -174,19 +179,22 @@ class Game:
 
     def executive(self): #Return what executive power the President can use for enacting a Fascist policy (or None)
         if len(self.hit.teammates()) == 3:
-            return [search, search, choose, shoot, shoot][self.passed[1] - 1] #Get power for policy passed
+            return [search, search, choose, shoot, shootv][self.passed[Fascist] - 1] #Get power for policy passed
         
         elif len(self.hit.teammates()) == 2:
-            return [None, search, choose, shoot, shoot][self.passed[1] - 1]
+            return [None, search, choose, shoot, shootv][self.passed[Fascist] - 1]
         
         else:
-            return [None, None, examine, shoot, shoot][self.passed[1] - 1]
+            return [None, None, examine, shoot, shootv][self.passed[Fascist] - 1]
         
     def join(self, user):
         self.players.append(Player(self, user))
 
     def leave(self, player):
         self.players.remove(player)
+
+        if self.started: #Remove player from alive if started
+            self.alive.remove(player)
 
     def start(self): #Handles whether game can start and begins game loop if so
         self.alive = self.players.copy() #Make list of alive players
