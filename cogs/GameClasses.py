@@ -72,6 +72,8 @@ class Game:
         self.code = code
         self.owner = owner
 
+        self.players = [] #Initialize for player init
+
         self.players = [Player(self, owner)]
         self.alive = self.players #Reference for now if needed before game starts
 
