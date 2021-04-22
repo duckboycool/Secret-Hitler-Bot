@@ -111,11 +111,14 @@ class GameCommands(commands.Cog):
             return
 
         game = self.games[code]
+
+        game.join(ctx.author)
+
+        joined = game._get_player(ctx.author)
         
         for player in game.players:
-            await player.send(f'*{ctx.author.name}* has joined the game.')
-        
-        game.join(ctx.author)
+            if player != joined:
+                await player.send(f'*{joined.name}* has joined the game.')
 
         await ctx.send(f'Joined game `{code}`. Here is the current player list.{game.playlist()}')
 
