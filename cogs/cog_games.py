@@ -374,6 +374,8 @@ class GameCommands(commands.Cog):
                 for player in game.players:
                     await player.send('The government has won the election and will now take office.')
 
+                game.instability = 0
+
             else: #Government lost
                 for player in game.players:
                     await player.send(f"{'The government has' if result < 0 else 'The vote has tied, so the government'} lost the election. The Presidency will now go to the next person, and the government will become less stable.")

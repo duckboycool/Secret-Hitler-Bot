@@ -27,9 +27,9 @@ class UtilityCommands(commands.Cog):
     
     @tasks.loop(minutes=7.5)
     async def status_reload(self): #Update status periodically
-        await update_status(self.bot)
+        game = self.bot.get_cog('GameCommands')
 
-        print("Updated")
+        await update_status(self.bot, game.games)
     
     @commands.command()
     @commands.is_owner()
