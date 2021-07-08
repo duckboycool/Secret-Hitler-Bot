@@ -65,7 +65,7 @@ class GameCommands(commands.Cog):
             while code in self.games or not(code): #No duplicate codes
                 code = ''.join(random.choices(chars, k=5))
 
-            self.games[code] = Game(code, ctx.author)
+            self.games[code] = Game(code, ctx.author, self)
 
             await ctx.send(f'Created game with code `{code}`.')
 

@@ -5,6 +5,7 @@ Handles bot status and warnings.
 
 import discord
 from discord.ext import commands, tasks
+import time
 
 embed_color = 0x59a2a1
 
@@ -24,12 +25,29 @@ class UtilityCommands(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         self.status_reload.start() # pylint: disable=no-member
+        self.clear_inactive.start() # pyling: disable=no-member
     
     @tasks.loop(minutes=7.5)
     async def status_reload(self): #Update status periodically
         game = self.bot.get_cog('GameCommands')
 
         await update_status(self.bot, game.games)
+
+    @tasks.loop(minutes=1)
+    async def clear_inactive(self): #Remove game lobbies that have timed out
+        games = self.bot.get_cog('GameCommands')
+
+        for code in list(games.games):
+            if games.games[code].timestamp < (time.time() - 60 * 45): #Last message more than 45 minutes ago
+                for player in games.games[code].players:
+                    await player.send('Your lobby has timed out and expired.')
+                
+                if games.games[code].started:
+                    games.games[code].task.cancel()
+                
+                del games.games[code]
+
+        await update_status(self.bot, games.games)
     
     @commands.command()
     @commands.is_owner()
@@ -53,7 +71,7 @@ class UtilityCommands(commands.Cog):
 
         embed.set_thumbnail(url='https://cdn.discordapp.com/avatars/691007847416201217/31b3c53065bdb536bc9d59d73f14a202.png?size=256')
 
-        for game in Game.games:
+        for game in list(Game.games):
             for player in Game.games[game].players:
                 await player.send(embed=embed)
 

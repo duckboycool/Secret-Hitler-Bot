@@ -3,7 +3,8 @@ File containing classes used for active games.
 Loaded by game cog and then used.
 """
 
-import random
+import discord
+import random, time
 
 #Role values
 roles = ['Liberal', 'Fascist', 'Hitler']
@@ -36,8 +37,26 @@ class Player:
 
         self.open = True #Can use commands (is not replying to game message)
     
-    def send(self, *args, **kwargs):
-        return self.user.send(*args, **kwargs)
+    async def send(self, *args, **kwargs):
+        try:
+            await self.user.send(*args, **kwargs)
+
+            self.game.timestamp = time.time()
+
+        #Cannot message user (blocked bot, no longer shares server, etc.)
+        except discord.errors.Forbidden:
+            game = self.game
+            
+            game.leave(self)
+
+            for player in game.players:
+                await player.send(f'*{self.name}* has exited the game unexpectedly, and the lobby will have to close.')
+
+            if game.code in game.cog.games:
+                if game.started:
+                    game.cog.games[game.code].task.cancel()
+                
+                del game.cog.games[game.code]
 
     async def wait(self, bot, check=(lambda x: True), fail=None): #Takes in message check and fail message which is formatted with vars
         while True:
@@ -68,14 +87,17 @@ class Player:
             self.team = Fascist
 
 class Game:
-    def __init__(self, code, owner):
+    def __init__(self, code, owner, cog):
         self.code = code
         self.owner = owner
+        self.cog = cog
 
         self.players = [] #Initialize for player init
 
         self.players = [Player(self, owner)]
         self.alive = self.players #Reference for now if needed before game starts
+
+        self.timestamp = time.time()
 
         self.started = False
     
@@ -244,7 +266,7 @@ class Game:
     def reset(self): #Resets game to lobby state
         players = [Player(self, player.user) for player in self.players] #Store reset players
 
-        self.__init__(self.code, self.owner) #Reset game
+        self.__init__(self.code, self.owner, self.cog) #Reset game
 
         self.players = players #Reset players
         self.alive = self.players
