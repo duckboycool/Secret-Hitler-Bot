@@ -25,7 +25,7 @@ class UtilityCommands(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         self.status_reload.start() # pylint: disable=no-member
-        self.clear_inactive.start() # pyling: disable=no-member
+        self.clear_inactive.start() # pylint: disable=no-member
     
     @tasks.loop(minutes=7.5)
     async def status_reload(self): #Update status periodically

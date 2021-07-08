@@ -125,7 +125,7 @@ class Game:
 
         self.president = self.alive[index % len(self.alive)]
 
-    def chaos(self): #Government thrown into chaos after 3 unsucessful
+    def chaos(self): #Government thrown into chaos after 3 unsuccessful
         self.instability = 0 #Reset tracker
 
         passed = self.deck.pop(0)

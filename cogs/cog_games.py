@@ -158,7 +158,7 @@ class GameCommands(commands.Cog):
 
                 return
             
-            if all(alive.team for alive in game.alive if player != alive): #No more alive liberls
+            if all(alive.team for alive in game.alive if player != alive): #No more alive liberals
                 name = player.name
 
                 game.leave(player)
@@ -362,7 +362,7 @@ class GameCommands(commands.Cog):
             if result > 0:
                 if game.passed[Fascist] >= 3 and game.chancellor == game.hit: #At least 3 Fascist policies and Hitler elected Chancellor
                     for player in game.players:
-                        await player.send('Hitler has been elected Chancellor after 3 Fascist polices were enacted, meaning that Fascits have won.', file=discord.File(f'cogs/GameAssets/Fascist Win.png'))
+                        await player.send('Hitler has been elected Chancellor after 3 Fascist polices were enacted, meaning that Fascists have won.', file=discord.File(f'cogs/GameAssets/Fascist Win.png'))
                     
                     rolelist = game.rolelist(Fascist)
                         
@@ -386,7 +386,7 @@ class GameCommands(commands.Cog):
 
                 if game.instability == 3:
                     for player in game.players:
-                        await player.send("But first, becuase the government hasn't been able to be sucessfully elected in the past 3 elections, the country has plunged into chaos and the top policy from the deck will be passed.")
+                        await player.send("But first, because the government hasn't been able to be successfully elected in the past 3 elections, the country has plunged into chaos and the top policy from the deck will be passed.")
                     
                     passed = game.chaos()
 
@@ -476,7 +476,7 @@ class GameCommands(commands.Cog):
 
                     for player in game.players:
                         if player not in {game.president, game.chancellor}:
-                            await player.send('The Chancellor has decided to veto. Because 5 Fascist polcies have been passed, if the President agrees to a veto, then all of the policies will be discarded.')
+                            await player.send('The Chancellor has decided to veto. Because 5 Fascist policies have been passed, if the President agrees to a veto, then all of the policies will be discarded.')
 
                     game.president.open = False
 
@@ -497,7 +497,7 @@ class GameCommands(commands.Cog):
 
                         if game.instability == 3:
                             for player in game.players:
-                                await player.send("But first, becuase the government hasn't been able to sucessfully pass policy in the past 3 elections, the country has plunged into chaos and the top policy from the deck will be passed.")
+                                await player.send("But first, because the government hasn't been able to successfully pass policy in the past 3 elections, the country has plunged into chaos and the top policy from the deck will be passed.")
                             
                             passed = game.chaos()
 
@@ -684,7 +684,7 @@ class GameCommands(commands.Cog):
 
                     game.alive.remove(pick) #Kill player
 
-                    await game.president.send(f'You sucessfully executed *{pick.name}*.')
+                    await game.president.send(f'You successfully executed *{pick.name}*.')
 
                     game.president.open = True
 

@@ -3,9 +3,8 @@ Overall commands cog.
 Loads in other cogs and manages cog reloading.
 """
 
-import os, asyncio
+import os
 
-import discord
 from discord.ext import commands
 
 class SecHitComms(commands.Cog):
@@ -47,7 +46,7 @@ class SecHitComms(commands.Cog):
 
             game._load(games)
 
-        await ctx.send("Reloaded sucessfully.\n")
+        await ctx.send("Reloaded successfully.\n")
 
 
 def setup(bot):
