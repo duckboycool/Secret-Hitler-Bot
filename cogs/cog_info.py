@@ -42,7 +42,7 @@ class InfoCommands(commands.Cog):
     async def credits(self, ctx):
         embed = discord.Embed(
             title='Credits',
-            description='This bot was made by duckboycool#7682.\n\nAll art and gameplay concepts used by this bot are from [Secret Hitler](https://www.secrethitler.com/). (© 2016–2021 GOAT, WOLF, & CABBAGE)\n\nSecret Hitler was illustrated by Mac Schubert, and designed by Mike Boxleiter, Tommy Maranges, and Max Temkin.\n\nThis bot is adapted from Secret Hitler under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 licence](https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode), which the bot is also under.',
+            description='This bot was made by duckboycool#6936.\n\nAll art and gameplay concepts used by this bot are from [Secret Hitler](https://www.secrethitler.com/). (© 2016–2022 GOAT, WOLF, & CABBAGE)\n\nSecret Hitler was illustrated by Mac Schubert, and designed by Mike Boxleiter, Tommy Maranges, and Max Temkin.\n\nThis bot is adapted from Secret Hitler under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 license](https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode), which the bot is also under.',
             color=embed_color
         )
         

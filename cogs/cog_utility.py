@@ -24,7 +24,10 @@ class UtilityCommands(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
+        if self.status_reload.is_running(): self.status_reload.cancel()
         self.status_reload.start() # pylint: disable=no-member
+
+        if self.clear_inactive.is_running(): self.clear_inactive.cancel()
         self.clear_inactive.start() # pylint: disable=no-member
     
     @tasks.loop(minutes=7.5)
