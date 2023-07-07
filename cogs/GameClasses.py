@@ -27,14 +27,6 @@ class Player:
 
         self.name = user.name
 
-        #Add discriminators if multiple players have the same name
-        samenames = [player for player in game.players if player.name == self.name and player.user != user]
-
-        if samenames:
-            samenames[0].name = str(samenames[0].user) #Change found user as well
-
-            self.name = str(self.user)
-
         self.open = True #Can use commands (is not replying to game message)
     
     async def send(self, *args, **kwargs):
